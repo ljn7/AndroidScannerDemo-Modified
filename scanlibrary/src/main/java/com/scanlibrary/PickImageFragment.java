@@ -1,5 +1,7 @@
 package com.scanlibrary;
 
+import static com.scanlibrary.ScanConstants.START_CAMERA_REQUEST_CODE;
+
 import android.Manifest;
 import android.app.Activity;
 import android.app.Fragment;
@@ -8,6 +10,9 @@ import android.content.pm.PackageManager;
 import android.content.res.AssetFileDescriptor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
+import android.hardware.Camera;
+import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -24,7 +29,9 @@ import android.widget.ImageButton;
 import android.widget.Toast;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -34,7 +41,7 @@ import java.util.Date;
 public class PickImageFragment extends Fragment {
 
     private View view;
-    private ImageButton cameraButton;
+//    private ImageButton cameraButton;
     private ImageButton galleryButton;
     private Uri fileUri;
     private IScanner scanner;
@@ -57,8 +64,8 @@ public class PickImageFragment extends Fragment {
     }
 
     private void init() {
-        cameraButton = (ImageButton) view.findViewById(R.id.cameraButton);
-        cameraButton.setOnClickListener(new CameraButtonClickListener());
+//        cameraButton = (ImageButton) view.findViewById(R.id.cameraButton);
+//        cameraButton.setOnClickListener(new CameraButtonClickListener());
         galleryButton = (ImageButton) view.findViewById(R.id.selectButton);
         galleryButton.setOnClickListener(new GalleryClickListener());
         if (isIntentPreferenceSet()) {
@@ -119,47 +126,104 @@ public class PickImageFragment extends Fragment {
         startActivityForResult(intent, ScanConstants.PICKFILE_REQUEST_CODE);
     }
 
-    public void openCamera() {
+//    public void openCamera() {
+//        Log.d("OpenCamera: ", "Invoked");
+//        if (ContextCompat.checkSelfPermission(getActivity(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+//            Log.d("OpenCamera: ", "Capture");
+//            Intent cameraIntent = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
+//            File file = createImageFile();
+//            boolean isDirectoryCreated = file.getParentFile().mkdirs();
+//            Log.d("", "openCamera: isDirectoryCreated: " + isDirectoryCreated);
+//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+//                Uri tempFileUri = FileProvider.getUriForFile(getActivity().getApplicationContext(),
+//                        "com.scanlibrary.provider", // As defined in Manifest
+//                        file);
+//                cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, tempFileUri);
+//            } else {
+//                Uri tempFileUri = Uri.fromFile(file);
+//                cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, tempFileUri);
+//            }
+//            Log.d("OpenCamera: ", "StartingActivity");
+//            startActivityForResult(cameraIntent, ScanConstants.START_CAMERA_REQUEST_CODE);
+//        } else {
+//            ActivityCompat.requestPermissions(getActivity(), new String[]{Manifest.permission.CAMERA}, MY_CAMERA_REQUEST_CODE);
+//        }
+//    }
 
+//    public void openCamera() {
+//        Log.d("OpenCamera: ", "Invoked");
+//        if (ContextCompat.checkSelfPermission(getActivity(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+//            Log.d("OpenCamera: ", "Capture");
+//            Intent cameraIntent = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
+//            if (cameraIntent.resolveActivity(getActivity().getPackageManager()) != null) {
+//                startActivityForResult(cameraIntent, ScanConstants.START_CAMERA_REQUEST_CODE);
+//            } else {
+//                Toast.makeText(getActivity(), "No camera app found", Toast.LENGTH_SHORT).show();
+//            }
+//        } else {
+//            ActivityCompat.requestPermissions(getActivity(), new String[]{Manifest.permission.CAMERA}, MY_CAMERA_REQUEST_CODE);
+//        }
+//    }
+
+    public void openCamera() {
         if (ContextCompat.checkSelfPermission(getActivity(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
             Intent cameraIntent = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
             File file = createImageFile();
             boolean isDirectoryCreated = file.getParentFile().mkdirs();
             Log.d("", "openCamera: isDirectoryCreated: " + isDirectoryCreated);
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                Uri tempFileUri = FileProvider.getUriForFile(getActivity().getApplicationContext(),
-                        "com.scanlibrary.provider", // As defined in Manifest
-                        file);
-                cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, tempFileUri);
+                fileUri = FileProvider.getUriForFile(getActivity(), "com.scanlibrary.provider", file);
+                cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, fileUri);
             } else {
-                Uri tempFileUri = Uri.fromFile(file);
-                cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, tempFileUri);
+                fileUri = Uri.fromFile(file);
+                cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, fileUri);
             }
-            startActivityForResult(cameraIntent, ScanConstants.START_CAMERA_REQUEST_CODE);
+            startActivityForResult(cameraIntent, START_CAMERA_REQUEST_CODE);
         } else {
             ActivityCompat.requestPermissions(getActivity(), new String[]{Manifest.permission.CAMERA}, MY_CAMERA_REQUEST_CODE);
         }
     }
 
+//    private File createImageFile() {
+//        clearTempImages();
+//        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new
+//                Date());
+//        File file = new File(ScanConstants.IMAGE_PATH, "IMG_" + timeStamp +
+//                ".jpg");
+//        fileUri = Uri.fromFile(file);
+//        return file;
+//    }
+
     private File createImageFile() {
-        clearTempImages();
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new
-                Date());
-        File file = new File(ScanConstants.IMAGE_PATH, "IMG_" + timeStamp +
-                ".jpg");
-        fileUri = Uri.fromFile(file);
-        return file;
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        File storageDir = getActivity().getExternalFilesDir(null);
+        File imageFile = null;
+        try {
+            imageFile = File.createTempFile("IMG_" + timeStamp, ".jpg", storageDir);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return imageFile;
     }
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        Log.d("", "onActivityResult" + resultCode);
+        Log.d("onActivityResult", "onActivityResult" + resultCode);
+        Log.d("onActivityResult", Integer.toString(resultCode));
         Bitmap bitmap = null;
         if (resultCode == Activity.RESULT_OK) {
             try {
                 switch (requestCode) {
-                    case ScanConstants.START_CAMERA_REQUEST_CODE:
-                        bitmap = getBitmap(fileUri);
+                    case START_CAMERA_REQUEST_CODE:
+                        Log.d("OpenCamera: ", "In Activity ");
+
+                        if (fileUri != null) {
+                            bitmap = getBitmap(fileUri);
+
+                        } else {
+                            Toast.makeText(getActivity(), "Image file not found", Toast.LENGTH_SHORT).show();
+                        }
                         break;
 
                     case ScanConstants.PICKFILE_REQUEST_CODE:
@@ -177,21 +241,28 @@ public class PickImageFragment extends Fragment {
         }
     }
 
+
     protected void postImagePick(Bitmap bitmap) {
         Uri uri = Utils.getUri(getActivity(), bitmap);
         bitmap.recycle();
         scanner.onBitmapSelect(uri);
     }
 
-    private Bitmap getBitmap(Uri selectedimg) throws IOException {
+    private Bitmap getBitmap(Uri selectedImg) throws IOException {
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inSampleSize = 3;
         AssetFileDescriptor fileDescriptor = null;
         fileDescriptor =
-                getActivity().getContentResolver().openAssetFileDescriptor(selectedimg, "r");
+                getActivity().getContentResolver().openAssetFileDescriptor(selectedImg, "r");
         Bitmap original
                 = BitmapFactory.decodeFileDescriptor(
                 fileDescriptor.getFileDescriptor(), null, options);
+
+
+            Matrix matrix = new Matrix();
+            matrix.postRotate(90);
+            original = Bitmap.createBitmap(original, 0, 0, original.getWidth(), original.getHeight(), matrix, true);
+
         return original;
     }
 
