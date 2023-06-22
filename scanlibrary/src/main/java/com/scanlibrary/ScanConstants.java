@@ -9,6 +9,7 @@ public class ScanConstants {
 
     public final static int PICKFILE_REQUEST_CODE = 1;
     public final static int START_CAMERA_REQUEST_CODE = 2;
+    public final static int REQUEST_READ_EXTERNAL_STORAGE_PERMISSION = 3;
     public final static String OPEN_INTENT_PREFERENCE = "selectContent";
     public final static String IMAGE_BASE_PATH_EXTRA = "ImageBasePath";
     public final static int OPEN_CAMERA = 4;

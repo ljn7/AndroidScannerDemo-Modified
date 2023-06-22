@@ -1,5 +1,6 @@
 package com.scanlibrary;
 
+import static com.scanlibrary.ScanConstants.REQUEST_READ_EXTERNAL_STORAGE_PERMISSION;
 import static com.scanlibrary.ScanConstants.START_CAMERA_REQUEST_CODE;
 
 import android.Manifest;
@@ -120,6 +121,13 @@ public class PickImageFragment extends Fragment {
     }
 
     public void openMediaContent() {
+        Log.d("MediaContent: ", "invoked");
+        if (ContextCompat.checkSelfPermission(getActivity(), Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            Log.d("MediaContent: ", "No Permission");
+            ActivityCompat.requestPermissions(getActivity(), new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, REQUEST_READ_EXTERNAL_STORAGE_PERMISSION);
+            return;
+        }
+        Log.d("MediaContent: ", "Permission Granted");
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("image/*");
@@ -276,6 +284,13 @@ public class PickImageFragment extends Fragment {
                 Toast.makeText(getActivity(), "camera permission denied", Toast.LENGTH_LONG).show();
             }
 
+        }
+        if (requestCode == REQUEST_READ_EXTERNAL_STORAGE_PERMISSION) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                openMediaContent();
+            } else {
+                Toast.makeText(getActivity(), "Read external storage permission denied", Toast.LENGTH_LONG).show();
+            }
         }
     }
 }
